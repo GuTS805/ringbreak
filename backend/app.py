@@ -9,10 +9,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .core import CASES, compare
-from .graph import case_transfers, graph, projected_transfers, seed, shared_device, time_paths
+from .agent import InvestigationError, llm_from_env
+from .agent import investigate as run_investigation
+from .core import CASES
+from .graph import graph, seed
 
-app = FastAPI(title="RINGBREAK", version="0.1.0")
+app = FastAPI(title="RINGBREAK", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=[os.getenv("WEB_ORIGIN", "http://localhost:3000")],
                    allow_methods=["GET", "POST"], allow_headers=["*"])
 DB_PATH = Path(os.getenv("REVIEW_DB", "reviews.sqlite3"))
@@ -63,33 +65,11 @@ def investigate(case_id: str):
     if case_id not in CASES:
         raise HTTPException(404, "unknown case")
     try:
-        g = graph()
-        txs = case_transfers(g, case_id)
-        projection = projected_transfers(g, case_id)
+        return run_investigation(graph(), case_id, llm=llm_from_env())
+    except InvestigationError as exc:
+        raise HTTPException(500, str(exc))
     except Exception as exc:
         raise HTTPException(503, f"FalkorDB unavailable: {type(exc).__name__}")
-    if {x["id"] for x in txs} != {x["id"] for x in projection}:
-        raise HTTPException(500, "graph transaction/projection mismatch")
-    flagged = CASES[case_id]["flagged"]
-    paths = time_paths([{**x, "device": next((t["device"] for t in txs if t["id"] == x["id"]), "")}
-                        for x in projection], flagged)
-    flag = next((t for t in txs if t["id"] == flagged), None)
-    if flag is None:
-        raise HTTPException(500, "flagged transaction missing from graph")
-    device_evidence = shared_device(g, flag["device"])
-    downstream = [p for p in paths if p["cashout"]]
-    candidate_ids = sorted({account for p in downstream for account in p["accounts"][1:-1]})
-    comparisons = [compare(case_id, account, flag["at_ms"] + 1) for account in candidate_ids]
-    comparisons.sort(key=lambda x: (-x["simulated_difference_now"], x["account"]))
-    evidence_ids = sorted({i for p in downstream for i in p["tx_ids"]})
-    suggestion = (f"Review a simulated outbound hold on {comparisons[0]['account']}. "
-                  f"Time-ordered graph path cites {', '.join(evidence_ids)}. "
-                  f"Simulated cash-out difference: {comparisons[0]['simulated_difference_now']} paise."
-                  if comparisons else "No time-ordered cash-out path found. Do not recommend a hold on this evidence.")
-    return {"synthetic_demo": True, "case": {"id": case_id, **CASES[case_id]},
-            "transfers": txs, "projection": projection, "paths": paths,
-            "shared_device": device_evidence, "candidates": comparisons,
-            "evidence_ids": evidence_ids, "recommendation": suggestion}
 
 
 @app.get("/reviews/{case_id}")
