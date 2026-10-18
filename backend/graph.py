@@ -36,12 +36,22 @@ RETURN DISTINCT b.id LIMIT $limit""",
 }
 
 
-def graph():
+def client():
     from falkordb import FalkorDB
     return FalkorDB(host=os.getenv("FALKOR_HOST", "localhost"),
                     port=int(os.getenv("FALKOR_PORT", "6379")),
                     username=os.getenv("FALKOR_USERNAME") or None,
-                    password=os.getenv("FALKOR_PASSWORD") or None).select_graph(GRAPH_NAME)
+                    password=os.getenv("FALKOR_PASSWORD") or None,
+                    socket_connect_timeout=3)
+
+
+def graph():
+    return client().select_graph(GRAPH_NAME)
+
+
+def ping():
+    """Server reachability. A read query would fail on a graph that is not seeded yet."""
+    return client().connection.ping()
 
 
 def seed(g):

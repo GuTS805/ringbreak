@@ -11,10 +11,10 @@ G.GRAPH_NAME = os.getenv("FALKOR_TEST_GRAPH", "ringbreak_test")  # never the dem
 
 def connect():
     try:
-        g = G.graph()
-        g.ro_query("RETURN 1", timeout=2000)
-        return g
-    except Exception:
+        G.ping()
+        return G.graph()
+    except Exception as exc:
+        print(f"FalkorDB not reachable: {type(exc).__name__}: {exc}")
         return None
 
 

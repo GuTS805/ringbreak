@@ -16,7 +16,7 @@ load_dotenv()  # before backend modules read FALKOR_* settings
 from .agent import InvestigationError, llm_from_env
 from .agent import investigate as run_investigation
 from .core import CASES
-from .graph import graph, seed
+from .graph import graph, ping, seed
 
 app = FastAPI(title="RINGBREAK", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=[os.getenv("WEB_ORIGIN", "http://localhost:3000")],
@@ -45,7 +45,7 @@ class Review(BaseModel):
 @app.get("/health")
 def health():
     try:
-        graph().ro_query("MATCH (n) RETURN count(n) LIMIT 1", timeout=2000)
+        ping()
         return {"ok": True, "graph": "connected"}
     except Exception as exc:
         raise HTTPException(503, f"FalkorDB unavailable: {type(exc).__name__}")
