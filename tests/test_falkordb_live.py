@@ -70,6 +70,16 @@ class LiveGraphTests(unittest.TestCase):
         self.assertEqual(r["evidence_ids"], ["A01", "A03", "A05"])
         self.assertEqual(agent.investigate(GRAPH, "shared")["candidates"], [])
 
+    def test_zz_review_roundtrip(self):  # runs last so seed counts are compared without reviews
+        rid = G.save_review(GRAPH, "delayed", "RELAY_C", "recommend_hold", "C01 then C02 cash-out.", ["C01", "C02"], "2026-10-18T00:00:00+00:00")
+        stored = G.list_reviews(GRAPH, "delayed")
+        self.assertEqual(stored[0]["id"], rid)
+        self.assertEqual(stored[0]["evidence_ids"], ["C01", "C02"])
+        cites = GRAPH.ro_query("MATCH (:Review {id:$id})-[:CITES]->(t:Transaction) RETURN t.id ORDER BY t.id", {"id": rid}).result_set
+        self.assertEqual([r[0] for r in cites], ["C01", "C02"])
+        G.save_review(GRAPH, "empty", None, "no_hold", "No downstream path.", [], "2026-10-18T00:01:00+00:00")
+        self.assertIsNone(G.list_reviews(GRAPH, "empty")[0]["account"])
+
 
 if __name__ == "__main__":
     unittest.main()

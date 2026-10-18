@@ -1,7 +1,5 @@
-"""API tests with stubbed graph tools: review validation and append-only persistence."""
-import tempfile
+"""API tests with stubbed graph tools and review store: validation and append-only history."""
 import unittest
-from pathlib import Path
 from unittest import mock
 
 from fastapi.testclient import TestClient
@@ -12,8 +10,18 @@ from test_agent import stub_tools
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.patches = [mock.patch.object(api, "DB_PATH", Path(self.tmp.name) / "r.sqlite3"),
+        saved = []
+
+        def store(g, case_id, account, action, rationale, evidence_ids, created_utc):
+            saved.append({"id": f"R{len(saved)}", "case_id": case_id, "account": account, "action": action,
+                          "rationale": rationale, "evidence_ids": evidence_ids, "created_utc": created_utc})
+            return saved[-1]["id"]
+
+        def listing(g, case_id):
+            return [r for r in reversed(saved) if r["case_id"] == case_id]
+
+        self.patches = [mock.patch.object(api, "store_review", store),
+                        mock.patch.object(api, "list_reviews", listing),
                         mock.patch.object(api, "graph", lambda: None),
                         mock.patch.object(api, "llm_from_env", lambda: None),
                         mock.patch.dict(agent.TOOLS, stub_tools())]
@@ -24,7 +32,6 @@ class ApiTests(unittest.TestCase):
     def tearDown(self):
         for p in reversed(self.patches):
             p.stop()
-        self.tmp.cleanup()
 
     def test_case_report(self):
         r = self.client.get("/cases/split").json()

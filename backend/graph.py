@@ -1,5 +1,7 @@
 """All investigation evidence is read from FalkorDB, never from fixtures."""
 import os
+import secrets
+import time
 from .core import CASES, INITIAL, TRANSFERS
 
 GRAPH_NAME = os.getenv("FALKOR_GRAPH", "ringbreak_demo")
@@ -177,3 +179,23 @@ def time_paths(transfers, flagged_id, max_hops=3):
             visit(tx["target"], tx["at_ms"], chain, accounts + [tx["target"]])
     visit(start["target"], start["at_ms"], [start["id"]], [start["source"], start["target"]])
     return sorted(paths[:100], key=lambda p: (p["last_ms"], p["tx_ids"]))
+
+
+def save_review(g, case_id, account, action, rationale, evidence_ids, created_utc):
+    """Append a human review as (:Review)-[:CITES]->(:Transaction). Reviews are never updated."""
+    review_id = f"R{int(time.time() * 1000)}-{secrets.token_hex(2)}"
+    g.query("""CREATE (r:Review {id:$id, case_id:$case_id, account:$account, action:$action,
+    rationale:$rationale, evidence_ids:$evidence, created_utc:$created})
+WITH r UNWIND $evidence AS tx_id
+MATCH (t:Transaction {id:tx_id}) CREATE (r)-[:CITES]->(t)""",
+            {"id": review_id, "case_id": case_id, "account": account or "", "action": action,
+             "rationale": rationale, "evidence": list(evidence_ids), "created": created_utc})
+    return review_id
+
+
+def list_reviews(g, case_id, limit=50):
+    rows = g.ro_query("""MATCH (r:Review {case_id:$case_id})
+RETURN r.id, r.account, r.action, r.rationale, r.evidence_ids, r.created_utc
+ORDER BY r.created_utc DESC LIMIT $limit""", {"case_id": case_id, "limit": limit}, timeout=TIMEOUT_MS).result_set
+    return [{"id": i, "account": a or None, "action": act, "rationale": why, "evidence_ids": list(ev or []),
+             "created_utc": at} for i, a, act, why, ev, at in rows]

@@ -1,45 +1,31 @@
 """RINGBREAK local API. Recommendations are for human review only."""
-import json
 import os
-import sqlite3
-from contextlib import closing
 from datetime import datetime, timezone
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 load_dotenv()  # before backend modules read FALKOR_* settings
 
 from .agent import InvestigationError, llm_from_env
 from .agent import investigate as run_investigation
 from .core import CASES
-from .graph import graph, ping, seed
+from .graph import graph, list_reviews, ping, seed
+from .graph import save_review as store_review
 
 app = FastAPI(title="RINGBREAK", version="0.2.0")
 app.add_middleware(CORSMiddleware, allow_origins=[os.getenv("WEB_ORIGIN", "http://localhost:3000")],
                    allow_methods=["GET", "POST"], allow_headers=["*"])
-DB_PATH = Path(os.getenv("REVIEW_DB", "reviews.sqlite3"))
-
-
-def connection():
-    db = sqlite3.connect(DB_PATH)
-    db.execute("""CREATE TABLE IF NOT EXISTS reviews
-    (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT NOT NULL, account TEXT,
-     action TEXT NOT NULL, rationale TEXT NOT NULL, evidence_json TEXT NOT NULL,
-     created_utc TEXT NOT NULL)""")
-    db.commit()
-    return db
 
 
 class Review(BaseModel):
     case_id: str
     account: str | None = None
     action: str
-    rationale: str
-    evidence_ids: list[str]
+    rationale: str = Field(max_length=1000)
+    evidence_ids: list[str] = Field(max_length=20)
 
 
 @app.get("/health")
@@ -80,11 +66,10 @@ def investigate(case_id: str):
 def reviews(case_id: str):
     if case_id not in CASES:
         raise HTTPException(404, "unknown case")
-    with closing(connection()) as db:
-        rows = db.execute("SELECT id,account,action,rationale,evidence_json,created_utc FROM reviews WHERE case_id=? ORDER BY id DESC",
-                          (case_id,)).fetchall()
-    return [{"id": r[0], "account": r[1], "action": r[2], "rationale": r[3],
-             "evidence_ids": json.loads(r[4]), "created_utc": r[5]} for r in rows]
+    try:
+        return list_reviews(graph(), case_id)
+    except Exception as exc:
+        raise HTTPException(503, f"FalkorDB unavailable: {type(exc).__name__}")
 
 
 @app.post("/reviews")
@@ -99,9 +84,6 @@ def save_review(review: Review):
             review.account not in {c["account"] for c in investigation["candidates"]} or
             not review.evidence_ids):
         raise HTTPException(400, "hold requires a ranked account and cited evidence")
-    with closing(connection()) as db:
-        cur = db.execute("INSERT INTO reviews (case_id,account,action,rationale,evidence_json,created_utc) VALUES (?,?,?,?,?,?)",
-                         (review.case_id, review.account, review.action, review.rationale,
-                          json.dumps(review.evidence_ids), datetime.now(timezone.utc).isoformat()))
-        db.commit()
-    return {"id": cur.lastrowid, "status": "human_review_recommendation", "synthetic_demo": True}
+    review_id = store_review(graph(), review.case_id, review.account, review.action, review.rationale.strip(),
+                             review.evidence_ids, datetime.now(timezone.utc).isoformat())
+    return {"id": review_id, "status": "human_review_recommendation", "synthetic_demo": True}
