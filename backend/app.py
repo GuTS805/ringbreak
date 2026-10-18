@@ -2,12 +2,16 @@
 import json
 import os
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+load_dotenv()  # before backend modules read FALKOR_* settings
 
 from .agent import InvestigationError, llm_from_env
 from .agent import investigate as run_investigation
@@ -76,7 +80,7 @@ def investigate(case_id: str):
 def reviews(case_id: str):
     if case_id not in CASES:
         raise HTTPException(404, "unknown case")
-    with connection() as db:
+    with closing(connection()) as db:
         rows = db.execute("SELECT id,account,action,rationale,evidence_json,created_utc FROM reviews WHERE case_id=? ORDER BY id DESC",
                           (case_id,)).fetchall()
     return [{"id": r[0], "account": r[1], "action": r[2], "rationale": r[3],
@@ -95,7 +99,7 @@ def save_review(review: Review):
             review.account not in {c["account"] for c in investigation["candidates"]} or
             not review.evidence_ids):
         raise HTTPException(400, "hold requires a ranked account and cited evidence")
-    with connection() as db:
+    with closing(connection()) as db:
         cur = db.execute("INSERT INTO reviews (case_id,account,action,rationale,evidence_json,created_utc) VALUES (?,?,?,?,?,?)",
                          (review.case_id, review.account, review.action, review.rationale,
                           json.dumps(review.evidence_ids), datetime.now(timezone.utc).isoformat()))
