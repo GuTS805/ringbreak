@@ -126,7 +126,7 @@ If the server build lacks `algo.WCC`, a bounded undirected `TRANSFER*1..4` match
 
 | Case | Flagged | What should happen |
 | --- | --- | --- |
-| Split → converge → cash-out | A01 | Path `A01 → A03 → A05` (VICTIM_A → MULE_A → HUB → CASH_A). `A04` (MULE_B → HUB) is not downstream of A01, so it is not cited. Candidates: HUB and MULE_A. MULE_B shares device `dev-mule` with MULE_A, which is shown as context only. |
+| Split → converge → cash-out | A01 | Path `A01 → A03 → A05` (VICTIM_A → MULE_A → HUB → CASH_A). `A04` (MULE_B → HUB) is not downstream of A01, so it is not cited. Candidates: HUB and MULE_A. Both give the same hold-now difference (₹450), because holding MULE_A starves HUB of the balance A05 needs. |
 | Shared device, benign merchant | B01 | B01 and B02 use the same kiosk, and there is no forwarding or cash-out. **No candidate, no hold.** This is the false-positive trap. |
 | Delayed forwarding | C01 | RELAY_C forwards at minute 20. Hold now blocks C02 (simulated difference ₹280). Hold +30 min is too late (₹0). |
 | No evidence | D01 | No downstream path. No candidate. |

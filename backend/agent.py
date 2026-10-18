@@ -113,7 +113,7 @@ def _keys(paths):
 
 
 def explain(flag, candidates, evidence_ids, devices):
-    others = sorted({d["account"] for d in devices if d["tx_id"] != flag["id"]})
+    others = sorted({d["account"] for d in devices if d["account"] != flag["source"]})
     device_note = (f" Device {flag['device']} is also used by {', '.join(others)}; device sharing alone is not treated as evidence."
                    if others else "")
     if not candidates:
