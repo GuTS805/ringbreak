@@ -11,3 +11,4 @@ reviews.sqlite3*
 
 .vercel
 .env*
+!.env.example
