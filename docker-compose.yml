@@ -2,7 +2,8 @@ services:
   falkordb:
     image: falkordb/falkordb:latest
     ports:
-      - "6379:6379"
+      - "6379:6379"   # graph database
+      - "3001:3000"   # FalkorDB Browser (3000 is used by the console)
     volumes:
       - falkordb_data:/data
 volumes:
