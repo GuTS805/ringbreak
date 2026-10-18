@@ -1,5 +1,7 @@
 # RINGBREAK
 
+[![ci](https://github.com/GuTS805/ringbreak/actions/workflows/ci.yml/badge.svg)](https://github.com/GuTS805/ringbreak/actions/workflows/ci.yml)
+
 **Graph-first investigation of fictional UPI mule networks, with a time-aware "what if we held this account?" simulator.**
 
 A flagged payment is rarely the whole story. Money gets split across mule accounts, comes back together at a hub, and is cashed out within minutes. RINGBREAK takes one flagged transaction and uses FalkorDB to:
@@ -51,7 +53,7 @@ python -m unittest discover -s tests -v
 cd frontend; npm run build
 ```
 
-`tests/test_falkordb_live.py` runs against a real FalkorDB, using a separate `ringbreak_test` graph, and **skips** when none is reachable. Run the suite with FalkorDB up to exercise the actual Cypher.
+`tests/test_falkordb_live.py` runs against a real FalkorDB, using a separate `ringbreak_test` graph, and **skips** when none is reachable. Run the suite with FalkorDB up to exercise the actual Cypher. CI (`.github/workflows/ci.yml`) runs all tests against a FalkorDB service container, seeds the graph through the API, checks that the Cypher paths match the verifier and that `algo.WCC` is used, and builds the console.
 
 ## Graph model
 
