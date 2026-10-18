@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      falkordb:
+        image: falkordb/falkordb:latest
+        ports:
+          - 6379:6379
+    env:
+      FALKOR_HOST: localhost
+      FALKOR_PORT: "6379"
+      REQUIRE_FALKORDB: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r backend/requirements.txt
+      - name: Wait for FalkorDB
+        run: |
+          for i in $(seq 1 30); do
+            python -c "from falkordb import FalkorDB; FalkorDB().select_graph('ping').query('RETURN 1')" && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: Unit and live graph tests
+        run: python -m unittest discover -s tests -v
+      - name: API smoke test against the live graph
+        run: |
+          uvicorn backend.app:app --port 8000 &
+          for i in $(seq 1 20); do curl -sf localhost:8000/health && break; sleep 1; done
+          curl -sf -X POST localhost:8000/seed | tee seed.json
+          curl -sf localhost:8000/cases/split > split.json
+          curl -sf localhost:8000/cases/shared > shared.json
+          python - <<'PY'
+          import json
+          split, shared = json.load(open("split.json")), json.load(open("shared.json"))
+          print(split["path_check"], split["evidence_ids"], split["account_group"]["method"])
+          assert split["path_check"] == "cypher_matches_dfs"
+          assert split["evidence_ids"] == ["A01", "A03", "A05"]
+          assert split["account_group"]["method"] == "algo.WCC"
+          assert shared["candidates"] == []
+          PY
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm run build

@@ -19,6 +19,8 @@ def connect():
 
 
 GRAPH = connect()
+if GRAPH is None and os.getenv("REQUIRE_FALKORDB"):
+    raise RuntimeError("REQUIRE_FALKORDB is set but FalkorDB is not reachable")
 
 
 @unittest.skipIf(GRAPH is None, "FalkorDB not reachable; set FALKOR_HOST/FALKOR_PORT")
