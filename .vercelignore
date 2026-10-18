@@ -3,3 +3,7 @@ tests
 .github
 .venv
 *.sqlite3
+.env
+.env.*
+!.env.example
+.vercel

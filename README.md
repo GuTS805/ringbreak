@@ -30,7 +30,7 @@ No Docker? Create a free instance at [FalkorDB Cloud](https://app.falkordb.cloud
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1          # macOS/Linux: source .venv/bin/activate
-pip install -r backend\requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 Copy-Item .env.example .env           # macOS/Linux: cp .env.example .env
 uvicorn backend.app:app --reload --port 8000
 ```
@@ -54,6 +54,17 @@ cd frontend; npm run build
 ```
 
 `tests/test_falkordb_live.py` runs against a real FalkorDB, using a separate `ringbreak_test` graph, and **skips** when none is reachable. Run the suite with FalkorDB up to exercise the actual Cypher. CI (`.github/workflows/ci.yml`) runs all tests against a FalkorDB service container, seeds the graph through the API, checks that the Cypher paths match the verifier and that `algo.WCC` is used, and builds the console.
+
+## Deploying to Vercel
+
+Two Vercel projects deploy from this repo:
+
+| Project | Root directory | Notes |
+| --- | --- | --- |
+| API | repo root | `main.py` exposes the FastAPI `app`. Set `FALKOR_HOST`, `FALKOR_PORT`, `FALKOR_USERNAME`, `FALKOR_PASSWORD` to a FalkorDB Cloud instance. |
+| Console | `frontend` | Set `API_INTERNAL_URL` to the API's URL. The console proxies `/api/*` to it. |
+
+Reviews are stored in the graph, so nothing depends on a local disk. After the first deploy, click **Seed FalkorDB** once.
 
 ## Graph model
 
@@ -146,7 +157,7 @@ Replay processes events in `(at_ms, id)` order, rejects any transfer above the a
 - The dataset is tiny, fictional and hand-designed. This is not a fraud classifier or a calibrated risk model.
 - Candidate ranking uses simulated cash-out difference, which can overstate impact because all other events are assumed to happen as seeded. In the split case, holding MULE_A also starves HUB of the balance needed for A05.
 - Ordering is strict: two transfers with the same timestamp are not treated as a path.
-- The console has no authentication; run it locally only. The review log is append-only in the app, but SQLite is not tamper-resistant.
+- The console has no authentication, so treat a public deployment as a demo. Reviews are stored in FalkorDB as `(:Review)-[:CITES]->(:Transaction)` and are append-only in the app, but the store is not tamper-resistant.
 - Nothing here is deployed, and no real funds are recovered.
 
 ## Submission checklist
