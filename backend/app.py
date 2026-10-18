@@ -78,10 +78,7 @@ def investigate(case_id: str):
         raise HTTPException(500, "flagged transaction missing from graph")
     device_evidence = shared_device(g, flag["device"])
     downstream = [p for p in paths if p["cashout"]]
-    candidate_ids = sorted({p["accounts"][-2] for p in downstream})
-    # For split, include both upstream mule candidates for comparison.
-    if case_id == "split":
-        candidate_ids = sorted(set(candidate_ids) | {t["target"] for t in txs if t["source"] == flag["source"]})
+    candidate_ids = sorted({account for p in downstream for account in p["accounts"][1:-1]})
     comparisons = [compare(case_id, account, flag["at_ms"] + 1) for account in candidate_ids]
     comparisons.sort(key=lambda x: (-x["simulated_difference_now"], x["account"]))
     evidence_ids = sorted({i for p in downstream for i in p["tx_ids"]})
