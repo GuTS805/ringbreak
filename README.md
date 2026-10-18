@@ -44,7 +44,7 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000 and click **Seed FalkorDB**. The seed response includes node and edge counts read back from the graph. Then pick a case. API docs are at http://localhost:8000/docs.
+Open http://localhost:3000 and click **Seed FalkorDB**. The console proxies `/api/*` to the API (`API_INTERNAL_URL`, default `http://127.0.0.1:8000`), so a single URL serves everything. To share a public demo, run `npm run build; npm run start` and expose port 3000 only, for example with `cloudflared tunnel --url http://localhost:3000`. The seed response includes node and edge counts read back from the graph. Then pick a case. API docs are at http://localhost:8000/docs.
 
 **Tests**
 

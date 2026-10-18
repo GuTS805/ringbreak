@@ -8,7 +8,7 @@ type Case = {id:string;title:string;flagged:string;truth:string};
 type Step = {step:number;tool:string;args?:Record<string,unknown>;rows?:number;ms?:number;cypher?:string;note?:string;error?:string};
 type Report = {case:Case;transfers:Tx[];paths:{accounts:string[];tx_ids:string[];cashout:boolean}[];shared_device:{device:string;account:string;tx_id:string;case_id:string}[];account_group:{method:string;members:string[]};candidates:Candidate[];evidence_ids:string[];recommendation:string;phrasing:string;path_check:string;decision_ms:number;trace:Step[]};
 type Review = {id:number;action:string;account:string|null;rationale:string;evidence_ids:string[];created_utc:string};
-const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_BASE || '/api';
 const inr = (p:number) => `₹${(p/100).toLocaleString('en-IN', {minimumFractionDigits:2})}`;
 const stamp = (ms:number) => new Date(ms).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})+' UTC';
 
