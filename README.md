@@ -2,6 +2,8 @@
 
 [![ci](https://github.com/GuTS805/ringbreak/actions/workflows/ci.yml/badge.svg)](https://github.com/GuTS805/ringbreak/actions/workflows/ci.yml)
 
+**Live demo: https://ringbreak.vercel.app** (console on Vercel, API at https://ringbreak-api.vercel.app/docs, graph on FalkorDB Cloud)
+
 **Graph-first investigation of fictional UPI mule networks, with a time-aware "what if we held this account?" simulator.**
 
 A flagged payment is rarely the whole story. Money gets split across mule accounts, comes back together at a hub, and is cashed out within minutes. RINGBREAK takes one flagged transaction and uses FalkorDB to:
